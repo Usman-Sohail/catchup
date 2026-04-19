@@ -74,7 +74,7 @@ export function AddMemeModal({ open, onClose, onAdded }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.title || !form.imageUrl || !form.meaning || !form.example) {
+    if (!form.title || !form.meaning || !form.example) {
       setError('Please fill in all required fields.');
       return;
     }

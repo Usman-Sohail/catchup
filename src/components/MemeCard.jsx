@@ -14,7 +14,7 @@ export function MemeCard({ meme, onTagClick }) {
     <Card className="flex flex-col overflow-hidden hover:shadow-md transition-shadow duration-200">
       <div className="aspect-video w-full overflow-hidden bg-muted">
         <img
-          src={meme.imageUrl}
+          src={meme.imageUrl || `https://placehold.co/600x338/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`}
           alt={meme.title}
           className="h-full w-full object-cover"
           onError={(e) => {
