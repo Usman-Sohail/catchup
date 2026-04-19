@@ -10,22 +10,23 @@ function formatDate(dateStr) {
 }
 
 export function MemeCard({ meme, onTagClick }) {
+  const placeholder = `https://placehold.co/600x338/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`;
+
   return (
-    <Card className="flex flex-col overflow-hidden hover:shadow-md transition-shadow duration-200">
+    <Card className="flex flex-col overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group">
       <div className="aspect-video w-full overflow-hidden bg-muted">
         <img
-          src={meme.imageUrl || `https://placehold.co/600x338/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`}
+          src={meme.imageUrl || placeholder}
           alt={meme.title}
-          className="h-full w-full object-cover"
-          onError={(e) => {
-            e.target.src = `https://placehold.co/600x338/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`;
-          }}
+          loading="lazy"
+          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => { e.target.src = placeholder; }}
         />
       </div>
 
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-xl">{meme.title}</CardTitle>
+          <CardTitle className="text-base leading-snug">{meme.title}</CardTitle>
           <span className="shrink-0 text-xs text-muted-foreground mt-0.5">
             {formatDate(meme.createdAt)}
           </span>
@@ -35,7 +36,7 @@ export function MemeCard({ meme, onTagClick }) {
       <CardContent className="flex flex-col gap-3 flex-1">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-            What it means
+            Meaning
           </p>
           <p className="text-sm text-foreground leading-relaxed">{meme.meaning}</p>
         </div>
