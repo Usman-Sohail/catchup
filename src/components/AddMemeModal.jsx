@@ -34,6 +34,12 @@ export function AddMemeModal({ open, onClose, onAdded }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 500 * 1024) {
+      setError('Image must be under 500 KB. Try compressing it at squoosh.app first.');
+      fileInputRef.current.value = '';
+      return;
+    }
+
     setPreview(URL.createObjectURL(file));
     setUploading(true);
     setError('');
@@ -43,10 +49,13 @@ export function AddMemeModal({ open, onClose, onAdded }) {
       data.append('image', file);
 
       const res = await fetch(`${API}/api/upload`, { method: 'POST', body: data });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const json = await res.json();
 
-      const { imageUrl } = await res.json();
-      set('imageUrl', imageUrl);
+      if (!res.ok) {
+        throw new Error(json.error || `Upload failed (${res.status})`);
+      }
+
+      set('imageUrl', json.imageUrl);
     } catch (err) {
       setError(err.message);
       setPreview(null);
