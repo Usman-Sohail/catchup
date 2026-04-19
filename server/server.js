@@ -15,6 +15,7 @@ app.use(express.json());
 app.use("/api/memes", memesRouter);
 app.use("/api/upload", uploadRouter);
 
+app.get("/", (req, res) => res.json({ status: "ok", message: "catchup API is running" }));
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 app.listen(PORT, () => {
