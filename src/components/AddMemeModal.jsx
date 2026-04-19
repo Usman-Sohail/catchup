@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, ImageUp, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -17,11 +17,40 @@ const EMPTY_FORM = {
 
 export function AddMemeModal({ open, onClose, onAdded }) {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  // Upload file to Cloudinary via /api/upload, store returned URL
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPreview(URL.createObjectURL(file));
+    setUploading(true);
+    setError('');
+
+    try {
+      const data = new FormData();
+      data.append('image', file);
+
+      const res = await fetch('/api/upload', { method: 'POST', body: data });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+
+      const { imageUrl } = await res.json();
+      set('imageUrl', imageUrl);
+    } catch (err) {
+      setError(err.message);
+      setPreview(null);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function addTag() {
@@ -48,7 +77,7 @@ export function AddMemeModal({ open, onClose, onAdded }) {
       return;
     }
     setError('');
-    setLoading(true);
+    setSubmitting(true);
     try {
       const res = await fetch('/api/memes', {
         method: 'POST',
@@ -64,24 +93,26 @@ export function AddMemeModal({ open, onClose, onAdded }) {
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const newMeme = await res.json();
       onAdded(newMeme);
-      setForm(EMPTY_FORM);
-      onClose();
+      handleClose();
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
   function handleClose() {
     setForm(EMPTY_FORM);
+    setPreview(null);
     setError('');
     onClose();
   }
 
+  const busy = uploading || submitting;
+
   return (
     <Dialog open={open} onClose={handleClose}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a Meme</DialogTitle>
           <button
@@ -93,19 +124,60 @@ export function AddMemeModal({ open, onClose, onAdded }) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {/* Image upload */}
+          <Field label="Image *">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {preview ? (
+              <div className="relative rounded-md overflow-hidden border border-border aspect-video bg-muted">
+                <img src={preview} alt="preview" className="w-full h-full object-cover" />
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 size={24} className="text-white animate-spin" />
+                  </div>
+                )}
+                {!uploading && (
+                  <button
+                    type="button"
+                    onClick={() => { setPreview(null); set('imageUrl', ''); fileInputRef.current.value = ''; }}
+                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current.click()}
+                className="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors py-8 text-muted-foreground hover:text-foreground"
+              >
+                <ImageUp size={22} />
+                <span className="text-sm font-medium">Click to upload image</span>
+                <span className="text-xs">PNG, JPG, GIF, WEBP</span>
+              </button>
+            )}
+
+            {/* Fallback: paste URL manually */}
+            <Input
+              placeholder="Or paste an image URL"
+              value={form.imageUrl}
+              onChange={(e) => { set('imageUrl', e.target.value); setPreview(e.target.value || null); }}
+              disabled={uploading}
+            />
+          </Field>
+
           <Field label="Title *">
             <Input
               placeholder="e.g. Brain Rot"
               value={form.title}
               onChange={(e) => set('title', e.target.value)}
-            />
-          </Field>
-
-          <Field label="Image URL *">
-            <Input
-              placeholder="https://i.imgflip.com/..."
-              value={form.imageUrl}
-              onChange={(e) => set('imageUrl', e.target.value)}
             />
           </Field>
 
@@ -147,24 +219,27 @@ export function AddMemeModal({ open, onClose, onAdded }) {
                     className="cursor-pointer gap-1 pr-1.5"
                     onClick={() => removeTag(tag)}
                   >
-                    #{tag}
-                    <X size={10} className="opacity-60" />
+                    #{tag} <X size={10} className="opacity-60" />
                   </Badge>
                 ))}
               </div>
             )}
           </Field>
 
-          {error && (
-            <p className="text-xs text-red-500">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving…' : 'Add Meme'}
+            <Button type="submit" disabled={busy}>
+              {submitting ? (
+                <><Loader2 size={14} className="animate-spin mr-1" /> Saving…</>
+              ) : uploading ? (
+                <><Loader2 size={14} className="animate-spin mr-1" /> Uploading…</>
+              ) : (
+                'Add Meme'
+              )}
             </Button>
           </div>
         </form>

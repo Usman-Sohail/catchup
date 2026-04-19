@@ -12,7 +12,6 @@ dist
 dist-ssr
 *.local
 
-# Environment variables — never commit these
 .env
 .env.*
 !.env.example
