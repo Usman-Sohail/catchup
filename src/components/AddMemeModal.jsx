@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react';
+
+const API = import.meta.env.VITE_API_URL ?? '';
 import { X, ImageUp, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
@@ -40,7 +42,7 @@ export function AddMemeModal({ open, onClose, onAdded }) {
       const data = new FormData();
       data.append('image', file);
 
-      const res = await fetch('/api/upload', { method: 'POST', body: data });
+      const res = await fetch(`${API}/api/upload`, { method: 'POST', body: data });
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
 
       const { imageUrl } = await res.json();
@@ -79,7 +81,7 @@ export function AddMemeModal({ open, onClose, onAdded }) {
     setError('');
     setSubmitting(true);
     try {
-      const res = await fetch('/api/memes', {
+      const res = await fetch(`${API}/api/memes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -6,6 +6,8 @@ import { TagFilter } from './components/TagFilter';
 import { AddMemeModal } from './components/AddMemeModal';
 import { Button } from './components/ui/button';
 
+const API = import.meta.env.VITE_API_URL ?? '';
+
 export default function App() {
   const [memes, setMemes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/memes')
+    fetch(`${API}/api/memes`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
