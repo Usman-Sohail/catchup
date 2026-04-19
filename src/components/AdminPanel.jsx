@@ -41,9 +41,11 @@ function MiniCard({ meme, onApprove, onReject, busy }) {
 }
 
 export function AdminPanel({ onClose }) {
-  const [step, setStep] = useState('login'); // 'login' | 'panel'
+  // Initialise synchronously from sessionStorage — no flash on re-open
+  const savedKey = sessionStorage.getItem('catchup-admin-key') || '';
+  const [step, setStep] = useState(savedKey ? 'panel' : 'login');
   const [keyInput, setKeyInput] = useState('');
-  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem('catchup-admin-key') || '');
+  const [adminKey, setAdminKey] = useState(savedKey);
   const [memes, setMemes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);

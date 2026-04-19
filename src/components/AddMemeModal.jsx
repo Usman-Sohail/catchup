@@ -1,6 +1,4 @@
 import { useState, useRef } from 'react';
-
-const API = import.meta.env.VITE_API_URL ?? '';
 import { X, ImageUp, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
@@ -8,20 +6,27 @@ import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
-const EMPTY_FORM = {
-  title: '',
-  imageUrl: '',
-  meaning: '',
-  example: '',
-  tagInput: '',
-  tags: [],
-};
+const API = import.meta.env.VITE_API_URL ?? '';
 
-export function AddMemeModal({ open, onClose, onAdded }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+function buildForm(meme) {
+  return {
+    title:    meme?.title    ?? '',
+    imageUrl: meme?.imageUrl ?? '',
+    meaning:  meme?.meaning  ?? '',
+    example:  meme?.example  ?? '',
+    tagInput: '',
+    tags:     meme?.tags     ? [...meme.tags] : [],
+  };
+}
+
+// meme prop = edit mode; null/undefined = add mode
+export function AddMemeModal({ open, onClose, onSaved, meme }) {
+  const isEdit = !!meme;
+
+  const [form, setForm] = useState(() => buildForm(meme));
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [preview, setPreview] = useState(null);
+  const [preview, setPreview] = useState(meme?.imageUrl || null);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
@@ -29,7 +34,6 @@ export function AddMemeModal({ open, onClose, onAdded }) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  // Upload file to Cloudinary via /api/upload, store returned URL
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -47,14 +51,9 @@ export function AddMemeModal({ open, onClose, onAdded }) {
     try {
       const data = new FormData();
       data.append('image', file);
-
       const res = await fetch(`${API}/api/upload`, { method: 'POST', body: data });
       const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error || `Upload failed (${res.status})`);
-      }
-
+      if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
       set('imageUrl', json.imageUrl);
     } catch (err) {
       setError(err.message);
@@ -75,10 +74,7 @@ export function AddMemeModal({ open, onClose, onAdded }) {
   }
 
   function handleTagKeyDown(e) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag();
-    }
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); }
   }
 
   async function handleSubmit(e) {
@@ -90,20 +86,23 @@ export function AddMemeModal({ open, onClose, onAdded }) {
     setError('');
     setSubmitting(true);
     try {
-      const res = await fetch(`${API}/api/memes`, {
-        method: 'POST',
+      const url    = isEdit ? `${API}/api/memes/${meme._id}` : `${API}/api/memes`;
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: form.title.trim(),
+          title:    form.title.trim(),
           imageUrl: form.imageUrl.trim(),
-          meaning: form.meaning.trim(),
-          example: form.example.trim(),
-          tags: form.tags,
+          meaning:  form.meaning.trim(),
+          example:  form.example.trim(),
+          tags:     form.tags,
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const newMeme = await res.json();
-      onAdded(newMeme);
+      const saved = await res.json();
+      onSaved(saved);
       handleClose();
     } catch (err) {
       setError(err.message);
@@ -113,8 +112,8 @@ export function AddMemeModal({ open, onClose, onAdded }) {
   }
 
   function handleClose() {
-    setForm(EMPTY_FORM);
-    setPreview(null);
+    setForm(buildForm(meme));
+    setPreview(meme?.imageUrl || null);
     setError('');
     onClose();
   }
@@ -125,25 +124,21 @@ export function AddMemeModal({ open, onClose, onAdded }) {
     <Dialog open={open} onClose={handleClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add a Meme</DialogTitle>
-          <button
-            onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <DialogTitle>{isEdit ? 'Suggest an Edit' : 'Add a Meme'}</DialogTitle>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X size={18} />
           </button>
         </DialogHeader>
 
+        {isEdit && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+            Your changes will be reviewed by an admin before going live.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          {/* Image upload */}
-          <Field label="Image *">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+          <Field label="Image">
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
             {preview ? (
               <div className="relative rounded-md overflow-hidden border border-border aspect-video bg-muted">
@@ -171,11 +166,10 @@ export function AddMemeModal({ open, onClose, onAdded }) {
               >
                 <ImageUp size={22} />
                 <span className="text-sm font-medium">Click to upload image</span>
-                <span className="text-xs">PNG, JPG, GIF, WEBP</span>
+                <span className="text-xs">PNG, JPG, GIF, WEBP · max 500 KB</span>
               </button>
             )}
 
-            {/* Fallback: paste URL manually */}
             <Input
               placeholder="Or paste an image URL"
               value={form.imageUrl}
@@ -185,29 +179,15 @@ export function AddMemeModal({ open, onClose, onAdded }) {
           </Field>
 
           <Field label="Title *">
-            <Input
-              placeholder="e.g. Brain Rot"
-              value={form.title}
-              onChange={(e) => set('title', e.target.value)}
-            />
+            <Input placeholder="e.g. Brain Rot" value={form.title} onChange={(e) => set('title', e.target.value)} />
           </Field>
 
           <Field label="Meaning *">
-            <Textarea
-              placeholder="What does this meme mean?"
-              rows={2}
-              value={form.meaning}
-              onChange={(e) => set('meaning', e.target.value)}
-            />
+            <Textarea placeholder="What does this meme mean?" rows={2} value={form.meaning} onChange={(e) => set('meaning', e.target.value)} />
           </Field>
 
           <Field label="Example Usage *">
-            <Textarea
-              placeholder='"Example sentence using this meme..."'
-              rows={2}
-              value={form.example}
-              onChange={(e) => set('example', e.target.value)}
-            />
+            <Textarea placeholder='"Example sentence using this meme..."' rows={2} value={form.example} onChange={(e) => set('example', e.target.value)} />
           </Field>
 
           <Field label="Tags">
@@ -218,18 +198,12 @@ export function AddMemeModal({ open, onClose, onAdded }) {
                 onChange={(e) => set('tagInput', e.target.value)}
                 onKeyDown={handleTagKeyDown}
               />
-              <Button type="button" variant="outline" size="sm" onClick={addTag}>
-                Add
-              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={addTag}>Add</Button>
             </div>
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {form.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    className="cursor-pointer gap-1 pr-1.5"
-                    onClick={() => removeTag(tag)}
-                  >
+                  <Badge key={tag} className="cursor-pointer gap-1 pr-1.5" onClick={() => removeTag(tag)}>
                     #{tag} <X size={10} className="opacity-60" />
                   </Badge>
                 ))}
@@ -240,17 +214,11 @@ export function AddMemeModal({ open, onClose, onAdded }) {
           {error && <p className="text-xs text-red-500">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={busy}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={busy}>Cancel</Button>
             <Button type="submit" disabled={busy}>
-              {submitting ? (
-                <><Loader2 size={14} className="animate-spin mr-1" /> Saving…</>
-              ) : uploading ? (
-                <><Loader2 size={14} className="animate-spin mr-1" /> Uploading…</>
-              ) : (
-                'Add Meme'
-              )}
+              {submitting ? <><Loader2 size={14} className="animate-spin mr-1" /> Saving…</>
+               : uploading ? <><Loader2 size={14} className="animate-spin mr-1" /> Uploading…</>
+               : isEdit ? 'Submit Edit' : 'Add Meme'}
             </Button>
           </div>
         </form>
@@ -262,9 +230,7 @@ export function AddMemeModal({ open, onClose, onAdded }) {
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        {label}
-      </label>
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
       {children}
     </div>
   );

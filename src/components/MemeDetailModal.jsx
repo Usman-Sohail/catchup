@@ -1,5 +1,6 @@
-import { X } from 'lucide-react';
+import { X, Pencil } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 
 function formatDate(dateStr) {
@@ -10,7 +11,7 @@ function formatDate(dateStr) {
   });
 }
 
-export function MemeDetailModal({ meme, onClose, onTagClick }) {
+export function MemeDetailModal({ meme, onClose, onTagClick, onEdit }) {
   if (!meme) return null;
 
   const placeholder = `https://placehold.co/800x500/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`;
@@ -78,6 +79,13 @@ export function MemeDetailModal({ meme, onClose, onTagClick }) {
               ))}
             </div>
           )}
+
+          <div className="flex justify-end pt-2 border-t border-border mt-1">
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Pencil size={13} className="mr-1.5" />
+              Suggest Edit
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

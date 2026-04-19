@@ -31,7 +31,8 @@ export default function App() {
     () => localStorage.getItem('catchup-view') || 'grid'
   );
 
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [memeFormOpen, setMemeFormOpen] = useState(false);
+  const [editingMeme, setEditingMeme] = useState(null); // null = add, meme = edit
   const [selectedMeme, setSelectedMeme] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
   const [pendingNotice, setPendingNotice] = useState(false);
@@ -104,14 +105,24 @@ export default function App() {
       });
   }, [debouncedSearch, activeTag, page, limit]);
 
-  function handleMemeAdded(newMeme) {
+  function handleMemeSaved(savedMeme) {
     cache.current.clear();
-    // Don't show in feed — it's pending approval
+    if (editingMeme) {
+      // Remove the edited meme from the feed — it's now pending again
+      setMemes((prev) => prev.filter((m) => m._id !== savedMeme._id));
+      setTotal((t) => t - 1);
+    }
     setPendingNotice(true);
     setTimeout(() => setPendingNotice(false), 6000);
-    if (newMeme.tags?.length) {
-      setAllTags((prev) => [...new Set([...prev, ...newMeme.tags])].sort());
+    if (savedMeme.tags?.length) {
+      setAllTags((prev) => [...new Set([...prev, ...savedMeme.tags])].sort());
     }
+  }
+
+  function openEdit(meme) {
+    setEditingMeme(meme);
+    setSelectedMeme(null);
+    setMemeFormOpen(true);
   }
 
   function handleTagClick(tag) {
@@ -148,7 +159,7 @@ export default function App() {
             >
               <ShieldCheck size={17} />
             </button>
-            <Button size="sm" onClick={() => setAddModalOpen(true)}>
+            <Button size="sm" onClick={() => { setEditingMeme(null); setMemeFormOpen(true); }}>
               <Plus size={15} className="mr-1.5" />
               Add Meme
             </Button>
@@ -272,15 +283,18 @@ export default function App() {
       </footer>
 
       <AddMemeModal
-        open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        onAdded={handleMemeAdded}
+        key={editingMeme?._id || 'new'}
+        open={memeFormOpen}
+        meme={editingMeme}
+        onClose={() => { setMemeFormOpen(false); setEditingMeme(null); }}
+        onSaved={handleMemeSaved}
       />
 
       <MemeDetailModal
         meme={selectedMeme}
         onClose={() => setSelectedMeme(null)}
         onTagClick={handleTagClick}
+        onEdit={() => openEdit(selectedMeme)}
       />
 
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}

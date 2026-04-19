@@ -44,6 +44,22 @@ router.get('/', async (req, res) => {
   }
 });
 
+// PATCH /api/memes/:id — suggest an edit, resets to pending for re-approval
+router.patch('/:id', async (req, res) => {
+  try {
+    const { title, imageUrl, meaning, example, tags } = req.body;
+    const meme = await Meme.findByIdAndUpdate(
+      req.params.id,
+      { title, imageUrl, meaning, example, tags, status: 'pending' },
+      { new: true, runValidators: true }
+    );
+    if (!meme) return res.status(404).json({ message: 'Meme not found.' });
+    res.json(meme);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // POST /api/memes
 router.post('/', async (req, res) => {
   try {
