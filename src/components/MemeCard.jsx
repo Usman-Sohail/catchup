@@ -9,11 +9,11 @@ function formatDate(dateStr) {
   });
 }
 
-export function MemeCard({ meme, onTagClick }) {
+export function MemeCard({ meme, onTagClick, onClick }) {
   const placeholder = `https://placehold.co/600x338/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`;
 
   return (
-    <Card className="flex flex-col overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group">
+    <Card className="flex flex-col overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer" onClick={onClick}>
       <div className="aspect-video w-full overflow-hidden bg-muted">
         <img
           src={meme.imageUrl || placeholder}
@@ -54,7 +54,7 @@ export function MemeCard({ meme, onTagClick }) {
               <Badge
                 key={tag}
                 className="cursor-pointer hover:bg-primary/20 transition-colors"
-                onClick={() => onTagClick?.(tag)}
+                onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
               >
                 #{tag}
               </Badge>

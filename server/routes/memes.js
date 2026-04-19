@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
   try {
     const { tag, search, page = '1', limit = '25' } = req.query;
 
-    const query = {};
+    const query = { status: 'approved' };
 
     if (tag) {
       query.tags = tag;

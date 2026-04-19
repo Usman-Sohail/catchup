@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, TrendingUp } from 'lucide-react';
+import { Plus, TrendingUp, ShieldCheck } from 'lucide-react';
 import { MemeCard } from './components/MemeCard';
 import { MemeListItem } from './components/MemeListItem';
 import { SkeletonCard, SkeletonListItem } from './components/SkeletonCard';
 import { TagFilter } from './components/TagFilter';
 import { AddMemeModal } from './components/AddMemeModal';
+import { MemeDetailModal } from './components/MemeDetailModal';
+import { AdminPanel } from './components/AdminPanel';
 import { Controls } from './components/Controls';
 import { Pagination } from './components/Pagination';
 import { Button } from './components/ui/button';
@@ -28,17 +30,20 @@ export default function App() {
   const [viewMode, setViewMode] = useState(
     () => localStorage.getItem('catchup-view') || 'grid'
   );
-  const [modalOpen, setModalOpen] = useState(false);
+
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedMeme, setSelectedMeme] = useState(null);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [pendingNotice, setPendingNotice] = useState(false);
 
   const debouncedSearch = useDebounce(search, 350);
   const cache = useRef(new Map());
 
-  // Persist view mode
   useEffect(() => {
     localStorage.setItem('catchup-view', viewMode);
   }, [viewMode]);
 
-  // Fetch all tags once on mount for the filter bar
+  // Fetch all tags once on mount
   useEffect(() => {
     fetch(`${API}/api/memes?limit=0`)
       .then((r) => r.json())
@@ -53,11 +58,7 @@ export default function App() {
   const prevFiltersRef = useRef({ search: '', tag: null, limit: 25 });
   useEffect(() => {
     const prev = prevFiltersRef.current;
-    if (
-      prev.search !== debouncedSearch ||
-      prev.tag !== activeTag ||
-      prev.limit !== limit
-    ) {
+    if (prev.search !== debouncedSearch || prev.tag !== activeTag || prev.limit !== limit) {
       prevFiltersRef.current = { search: debouncedSearch, tag: activeTag, limit };
       setPage(1);
     }
@@ -105,8 +106,9 @@ export default function App() {
 
   function handleMemeAdded(newMeme) {
     cache.current.clear();
-    setMemes((prev) => [newMeme, ...prev]);
-    setTotal((t) => t + 1);
+    // Don't show in feed — it's pending approval
+    setPendingNotice(true);
+    setTimeout(() => setPendingNotice(false), 6000);
     if (newMeme.tags?.length) {
       setAllTags((prev) => [...new Set([...prev, ...newMeme.tags])].sort());
     }
@@ -138,22 +140,38 @@ export default function App() {
               Understand the internet, one meme at a time
             </p>
           </div>
-          <Button size="sm" onClick={() => setModalOpen(true)}>
-            <Plus size={15} className="mr-1.5" />
-            Add Meme
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAdminOpen(true)}
+              className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+              title="Admin panel"
+            >
+              <ShieldCheck size={17} />
+            </button>
+            <Button size="sm" onClick={() => setAddModalOpen(true)}>
+              <Plus size={15} className="mr-1.5" />
+              Add Meme
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* Pending approval notice */}
+        {pendingNotice && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-4 py-3 flex items-center gap-2">
+            <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+              ✓ Meme submitted! It will appear after admin approval.
+            </span>
+          </div>
+        )}
+
         {/* Section heading */}
         <div className="flex items-center gap-2.5">
           <TrendingUp size={20} className="text-primary shrink-0" />
           <h2 className="text-xl font-semibold text-foreground">Trending Memes</h2>
           {!loading && (
-            <span className="text-sm text-muted-foreground">
-              — {total} total
-            </span>
+            <span className="text-sm text-muted-foreground">— {total} total</span>
           )}
         </div>
 
@@ -186,24 +204,34 @@ export default function App() {
           </div>
         )}
 
-        {/* Meme grid */}
+        {/* Grid view */}
         {!error && viewMode === 'grid' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {loading
               ? Array.from({ length: skeletonCount }).map((_, i) => <SkeletonCard key={i} />)
               : memes.map((meme) => (
-                  <MemeCard key={meme._id} meme={meme} onTagClick={handleTagClick} />
+                  <MemeCard
+                    key={meme._id}
+                    meme={meme}
+                    onTagClick={handleTagClick}
+                    onClick={() => setSelectedMeme(meme)}
+                  />
                 ))}
           </div>
         )}
 
-        {/* Meme list */}
+        {/* List view */}
         {!error && viewMode === 'list' && (
           <div className="flex flex-col gap-3">
             {loading
               ? Array.from({ length: skeletonCount }).map((_, i) => <SkeletonListItem key={i} />)
               : memes.map((meme) => (
-                  <MemeListItem key={meme._id} meme={meme} onTagClick={handleTagClick} />
+                  <MemeListItem
+                    key={meme._id}
+                    meme={meme}
+                    onTagClick={handleTagClick}
+                    onClick={() => setSelectedMeme(meme)}
+                  />
                 ))}
           </div>
         )}
@@ -221,10 +249,7 @@ export default function App() {
                 : 'Nothing here yet — add the first one!'}
             </p>
             {hasFilters && (
-              <button
-                onClick={clearFilters}
-                className="mt-4 text-sm text-primary hover:underline"
-              >
+              <button onClick={clearFilters} className="mt-4 text-sm text-primary hover:underline">
                 Clear filters
               </button>
             )}
@@ -234,9 +259,7 @@ export default function App() {
         {/* Pagination */}
         {!loading && !error && totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
-            <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
-            </p>
+            <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
@@ -249,10 +272,18 @@ export default function App() {
       </footer>
 
       <AddMemeModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
         onAdded={handleMemeAdded}
       />
+
+      <MemeDetailModal
+        meme={selectedMeme}
+        onClose={() => setSelectedMeme(null)}
+        onTagClick={handleTagClick}
+      />
+
+      {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
     </div>
   );
 }

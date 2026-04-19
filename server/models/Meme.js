@@ -6,6 +6,7 @@ const memeSchema = new mongoose.Schema({
   meaning: { type: String, required: true },
   example: { type: String, required: true },
   tags: [{ type: String }],
+  status: { type: String, enum: ['pending', 'approved'], default: 'pending' },
   createdAt: { type: Date, default: Date.now },
 });
 

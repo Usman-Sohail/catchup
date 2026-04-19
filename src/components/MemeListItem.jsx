@@ -8,11 +8,11 @@ function formatDate(dateStr) {
   });
 }
 
-export function MemeListItem({ meme, onTagClick }) {
+export function MemeListItem({ meme, onTagClick, onClick }) {
   const placeholder = `https://placehold.co/160x100/e2e8f0/94a3b8?text=${encodeURIComponent(meme.title)}`;
 
   return (
-    <div className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:shadow-md hover:-translate-y-px transition-all duration-200 group">
+    <div className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:shadow-md hover:-translate-y-px transition-all duration-200 group cursor-pointer" onClick={onClick}>
       <div className="shrink-0 w-40 h-28 rounded-lg overflow-hidden bg-muted">
         <img
           src={meme.imageUrl || placeholder}
@@ -39,7 +39,7 @@ export function MemeListItem({ meme, onTagClick }) {
               <Badge
                 key={tag}
                 className="cursor-pointer hover:bg-primary/20 transition-colors"
-                onClick={() => onTagClick?.(tag)}
+                onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
               >
                 #{tag}
               </Badge>

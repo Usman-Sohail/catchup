@@ -5,6 +5,7 @@ const cors = require("cors");
 
 const memesRouter = require("./routes/memes");
 const uploadRouter = require("./routes/upload");
+const adminRouter = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +15,7 @@ app.use(express.json());
 
 app.use("/api/memes", memesRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/", (req, res) => res.json({ status: "ok", message: "catchup API is running" }));
 app.get("/health", (req, res) => res.json({ status: "ok" }));
